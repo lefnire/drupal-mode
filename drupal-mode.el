@@ -1,82 +1,28 @@
-;;; drupal-mode.el --- Major mode for developing Drupal modules
+;;; drupal-mode.el --- major mode for Drupal coding
 
-;;; Commentary:
-;;
+;; Author: Tyler Renelle
+;; URL: http://github.com/lefnire/drupal-mode
+;; Version: 0.1
+;; Package-Requires: ((php-mode))
 
-
-;;; History:
-;;
-
-;;; Code:
-
-(require 'w3m)
-
-(defgroup drupal nil
-  "Drupal Development."
-  :group 'programming)
-
-(defcustom drupal-api-url "http://api.drupal.org/"
-  "Drupal API URL."
-  :type 'string
-  :group 'drupal)
-
-(defcustom drupal-hook-docstring
-  "/**
- * Implements %s()
- */"
-  "Documentation string for hook."
-  :type 'string
-  :group 'drupal)
-
-;; source: http://drupal.org/node/59868
-(defcustom drupal-php-style
-  '((c-offsets-alist . ((case-label . +)
-                        (arglist-intro . +) ; for FAPI arrays and DBTNG
-                        (arglist-cont-nonempty . c-lineup-math) ; for DBTNG fields and values
-                        (arglist-close . c-lineup-close-paren) ; correct arglist closing parenthesis
-                        )))
-  "Drupal coding style."
-  :group 'drupal)
-
-(defcustom drupal-api-buffer-name
-  "*drupal-api*"
-  "Buffer name for temporary API lookup."
-  :type 'string
-  :group 'drupal)
-
-(defun drupal-hook-implement (hook-name)
-  "Insert API code for HOOK-NAME at point."
-  (interactive (list (read-string "Hook name: ")))
-  (let ((module-name (drupal-module-name))
-        (docstring (format drupal-hook-docstring hook-name))
-        (url (concat drupal-api-url hook-name)))
-    (insert
-     (concat docstring (with-current-buffer (get-buffer-create drupal-api-buffer-name)
-                         (if (w3m-process-with-wait-handler
-                               (w3m-retrieve-and-render url nil nil nil nil handler))
-                             (let* ((beg (search-forward "<?php" nil t))
-                                    (end (- (search-forward "?>" nil t) 2))
-                                    (content (buffer-substring-no-properties beg end)))
-                               (replace-regexp-in-string "^function \\(hook\\)_" module-name content nil nil 1))
-                           (error "Failed to fetch page.")))))))
-
-;; based on sacha chua's idea
-(defun drupal-module-name ()
-  "Return the Drupal module name for .module and .install files."
-  (file-name-sans-extension (file-name-nondirectory (buffer-file-name))))
-
-(define-derived-mode drupal-mode
-  php-mode "Drupal"
-  "Major mode for working with Drupal.
-\\{drupal-mode-map}"
-  (c-set-style "drupal-php-style")
-  (set 'tab-width 2)
-  (set 'c-basic-offset 2)
-  (local-set-key (kbd "C-c h") 'drupal-hook-implement)
-  (set 'indent-tabs-mode nil))
-
-(c-add-style "drupal-php-style" drupal-php-style)
-
+;;;###autoload
+(define-derived-mode drupal-mode php-mode "Drupal"
+  "Major mode for Drupal coding.\n\n\\{drupal-mode-map}"
+  (setq c-basic-offset 2)
+  (setq indent-tabs-mode nil)
+  (setq fill-column 78)
+  (setq show-trailing-whitespace t)
+  (add-hook 'before-save-hook 'delete-trailing-whitespace)
+  (c-set-offset 'case-label '+)
+  (c-set-offset 'arglist-close 0)
+  (c-set-offset 'arglist-intro '+) ; for FAPI arrays and DBTNG
+  (c-set-offset 'arglist-cont-nonempty 'c-lineup-math) ; for DBTNG
+                                        ; fields and values
+  (run-mode-hooks 'drupal-mode-hook))
 (provide 'drupal-mode)
+
+(add-to-list 'auto-mode-alist '("\\.\\(module\\|test\\|install\\|theme\\)$" . drupal-mode))
+(add-to-list 'auto-mode-alist '("\\.\\(php\\|inc\\)$" . php-mode))
+(add-to-list 'auto-mode-alist '("\\.info" . conf-windows-mode))
 
 ;;; drupal-mode.el ends here
